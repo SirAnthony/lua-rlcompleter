@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 
 #define LCOMPLETERLIBNAME "rlcompleter"
 
@@ -115,10 +116,34 @@ static int lreadline(lua_State* L)
     return 1;
 }
 
+static int addhistory(lua_State* L)
+{
+  const char* line = lua_tostring(L,1);
+  add_history(line);
+  return 0;
+}
+
+static int readhistory(lua_State* L)
+{
+  const char* fname = lua_tostring(L,1);
+  read_history(fname);
+  return 0;
+}
+
+static int writehistory(lua_State* L)
+{
+  const char* fname = lua_tostring(L,1);
+  write_history(fname);
+  return 0;
+}
+
 static const struct luaL_Reg lib[] = {
   {"_set",        setcompleter},
   {"redisplay",   redisplay},
   {"readline",    lreadline},
+  {"add_history",    addhistory},
+  {"read_history",    readhistory},
+  {"write_history",    writehistory},
   {NULL, NULL},
 };
 
