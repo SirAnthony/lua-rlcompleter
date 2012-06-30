@@ -137,6 +137,32 @@ static int writehistory(lua_State* L)
   return 0;
 }
 
+static void push_history(lua_State* L, HIST_ENTRY* hist)
+{
+	// Create lua table history entry
+	lua_newtable(L);
+	lua_pushstring(L, "line");
+	lua_pushstring(L, hist->line);
+	lua_settable(L, -3);
+	lua_pushstring(L, "timestamp");
+	lua_pushstring(L, hist->timestamp);
+	lua_settable(L, -3);
+}
+
+static int previoushistory(lua_State* L)
+{
+	HIST_ENTRY* hist = previous_history();
+	push_history(L, hist);
+	return 1;
+}
+
+static int nexthistory(lua_State* L)
+{
+	HIST_ENTRY* hist = next_history();
+	push_history(L, hist);
+	return 1;
+}
+
 static const struct luaL_Reg lib[] = {
   {"_set",        setcompleter},
   {"redisplay",   redisplay},
@@ -144,6 +170,8 @@ static const struct luaL_Reg lib[] = {
   {"add_history",    addhistory},
   {"read_history",    readhistory},
   {"write_history",    writehistory},
+  {"previous_history", previoushistory},
+  {"next_history",     nexthistory},
   {NULL, NULL},
 };
 

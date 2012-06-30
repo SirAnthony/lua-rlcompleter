@@ -2,7 +2,7 @@
 
 V=2.0
 
-CFLAGS=-O2 -Wall -I/usr/include/lua5.1/ -fPIC
+CFLAGS=-O2 -Wall -I/usr/include/ -fPIC
 
 DYN=rlcompleter_c.so
 
