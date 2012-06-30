@@ -10,6 +10,10 @@ local keywords = {
   'return', 'then', 'true', 'until', 'while'
 }
 
+local function escape(s)
+  return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]','%%%1'):gsub('%z','%%z'))
+end
+
 -- This function is called back by C function do_completion, itself called
 -- back by readline library, in order to complete the current input line.
 rlcompleter._set(
@@ -18,7 +22,7 @@ rlcompleter._set(
     local matches = {}
     local function add(value)
       value = tostring(value)
-      if value:match("^" .. word) then
+      if value:match("^" .. escape(word)) then
         matches[#matches + 1] = value
       end
     end
@@ -67,7 +71,7 @@ rlcompleter._set(
             if t == 'table' then
               for k, v in pairs(v) do
                 if type(k) == 'string' and (sep ~= ':' or type(v) == "function") then
-                  add(k)
+                  add(expr .. sep .. k)
                 end
               end
             end
@@ -75,10 +79,16 @@ rlcompleter._set(
             if t == 'table' then
               for k in pairs(v) do
                 if type(k) == 'number' then
-                  add(k .. "]")
+                  add(expr .. sep .. k .. "]")
                 end
               end
               if word ~= "" then add_globals() end
+            end
+          end
+          -- Cut expr .. sep before display
+          if #matches > 1 then
+            for i,v in ipairs(matches) do
+              matches[i] = matches[i]:gsub("^" .. expr .. sep, "")
             end
           end
         end
@@ -127,7 +137,7 @@ rlcompleter._set(
       expr = expr:gsub("(%w)%s+(%w)","%1|%2")
       expr = expr:gsub("%s+", "") -- Remove now useless spaces
       -- This main regular expression looks for table indexes and function calls.
-      return curstring, expr:match("([%.%w%[%]_]-)([:%.%[%(])" .. word .. "$")
+      return curstring, expr:match("([%.%w%[%]_]+)([:%.%[%(])[^%.]*$")
     end
 
     -- Now call the processing functions and return the list of results.
