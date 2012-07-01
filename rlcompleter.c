@@ -157,7 +157,11 @@ static void push_history(lua_State *L, HIST_ENTRY *hist)
 
 static int previoushistory(lua_State *L)
 {
-  HIST_ENTRY *hist = previous_history();
+  HIST_ENTRY *hist;
+  if (!where_history())
+    hist = current_history();
+  else
+    hist = previous_history();
   push_history(L, hist);
   return 1;
 }
