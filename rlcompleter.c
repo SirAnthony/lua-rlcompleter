@@ -106,61 +106,67 @@ static int redisplay(lua_State *L)
   return 0;
 }
 
-static int lreadline(lua_State* L)
+static int lreadline(lua_State *L)
 {
-  const char* prompt = lua_tostring(L,1);
+  const char* prompt = lua_tostring(L, 1);
   char *line = readline(prompt);
   lua_pushstring(L, line);
   /* readline return value must be free'd */
   free(line);
-    return 1;
+  return 1;
 }
 
-static int addhistory(lua_State* L)
+static int addhistory(lua_State *L)
 {
-  const char* line = lua_tostring(L,1);
+  const char *line = lua_tostring(L, 1);
   add_history(line);
   return 0;
 }
 
-static int readhistory(lua_State* L)
+static int readhistory(lua_State *L)
 {
-  const char* fname = lua_tostring(L,1);
+  const char *fname = lua_tostring(L, 1);
   read_history(fname);
   return 0;
 }
 
-static int writehistory(lua_State* L)
+static int writehistory(lua_State *L)
 {
-  const char* fname = lua_tostring(L,1);
+  const char *fname = lua_tostring(L, 1);
   write_history(fname);
   return 0;
 }
 
-static void push_history(lua_State* L, HIST_ENTRY* hist)
+static void push_history(lua_State *L, HIST_ENTRY *hist)
 {
-	// Create lua table history entry
-	lua_newtable(L);
-	lua_pushstring(L, "line");
-	lua_pushstring(L, hist->line);
-	lua_settable(L, -3);
-	lua_pushstring(L, "timestamp");
-	lua_pushstring(L, hist->timestamp);
-	lua_settable(L, -3);
+  // Create lua table history entry
+  lua_newtable(L);
+  lua_pushstring(L, "line");
+  if (hist == NULL)
+    lua_pushnil(L);
+  else
+    lua_pushstring(L, hist->line);
+  lua_settable(L, -3);
+  lua_pushstring(L, "timestamp");
+  if (hist == NULL)
+    lua_pushnil(L);
+  else
+    lua_pushstring(L, hist->timestamp);
+  lua_settable(L, -3);
 }
 
-static int previoushistory(lua_State* L)
+static int previoushistory(lua_State *L)
 {
-	HIST_ENTRY* hist = previous_history();
-	push_history(L, hist);
-	return 1;
+  HIST_ENTRY *hist = previous_history();
+  push_history(L, hist);
+  return 1;
 }
 
-static int nexthistory(lua_State* L)
+static int nexthistory(lua_State *L)
 {
-	HIST_ENTRY* hist = next_history();
-	push_history(L, hist);
-	return 1;
+  HIST_ENTRY *hist = next_history();
+  push_history(L, hist);
+  return 1;
 }
 
 static const struct luaL_Reg lib[] = {
