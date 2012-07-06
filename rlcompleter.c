@@ -173,7 +173,6 @@ static int complete(lua_State *L)
     return 0;
   if (!lua_istable(L, -1)) {
     out = rl_copy_text(0, rl_end);
-    rl_delete_text(0, rl_end);
     /* Nothing found */
     if (out[0] == '\0')
       lua_pushfstring(L, line);
@@ -181,6 +180,8 @@ static int complete(lua_State *L)
       lua_pushfstring(L, out);
     free(out);
   }
+  rl_delete_text(0, rl_end);
+  rl_point = 0;
   return 1;
 }
 
