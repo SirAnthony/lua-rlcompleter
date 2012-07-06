@@ -1,6 +1,7 @@
 /************************************************************************
 * Lua readline completion for the Lua standalone interpreter
 *
+* (c) 2012 Sir Anthony <anthony[at]adsorbtion.org>
 * (c) 2011 Reuben Thomas <rrt@sc3d.org>
 * (c) 2007 Steve Donovan
 * (c) 2004 Jay Carlson
@@ -27,6 +28,7 @@
 #include "lauxlib.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -36,15 +38,18 @@
 #if LUA_VERSION_NUM > 501
 static int luaL_typerror(lua_State *L, int narg, const char *tname)
 {
-        const char *msg = lua_pushfstring(L, "%s expected, got %s",
+    const char *msg = lua_pushfstring(L, "%s expected, got %s",
                                           tname, luaL_typename(L, narg));
-        return luaL_argerror(L, narg, msg);
+    return luaL_argerror(L, narg, msg);
 }
 #endif
 
 
 /* Static copy of Lua state, as readline has no per-use state */
 static lua_State *storedL;
+
+/* Stream for lua non-stdin input */
+static FILE* tmpinstream;
 
 
 /* This function is called repeatedly by rl_completion_matches inside
@@ -87,6 +92,15 @@ static char **do_completion (const char *text, int start, int end)
   return matches;
 }
 
+static void display_hook(char **matches, int len, int max)
+{
+  int i;
+  lua_newtable(storedL);
+  for (i = 1; matches[i]; i++) {
+    lua_pushstring(storedL, matches[i]);
+    lua_rawseti(storedL, -2, i);
+  }
+}
 
 /* Lua bindings */
 static int setcompleter(lua_State *L)
@@ -109,10 +123,64 @@ static int redisplay(lua_State *L)
 static int lreadline(lua_State *L)
 {
   const char* prompt = lua_tostring(L, 1);
-  char *line = readline(prompt);
+  char *line = NULL;
+  if (rl_instream == NULL)
+    line = readline(prompt);
+  else {
+    fputs(prompt, tmpinstream);
+    fflush(tmpinstream);
+    fseek(tmpinstream, -strlen(prompt), SEEK_CUR);
+    line = readline(NULL);
+  }
   lua_pushstring(L, line);
   /* readline return value must be free'd */
-  free(line);
+  if(line != NULL)
+    free(line);
+
+  return 1;
+}
+
+static int setinput(lua_State *L)
+{
+  int out = lua_tointeger(L, 1);
+  char c[32];
+  switch(out) {
+  case 0:
+    rl_instream = NULL;
+    strcpy(c, "set show-all-if-ambiguous off");
+    break;
+  default:
+    rl_instream = tmpinstream;
+    strcpy(c, "set show-all-if-ambiguous on");
+    break;
+  }
+  rl_parse_and_bind(c);
+  /* reinitialize editline */
+  rl_initialize();
+
+  return 0;
+}
+
+static int complete(lua_State *L)
+{
+  const char* line;
+  char* out = NULL;
+  line = lua_tostring(L, 1);
+  rl_insert_text(line);
+  lua_pop(L, 1);
+  rl_complete(0, 0);
+  if(rl_outstream == NULL)
+    return 0;
+  if (!lua_istable(L, -1)) {
+    out = rl_copy_text(0, rl_end);
+    rl_delete_text(0, rl_end);
+    /* Nothing found */
+    if (out[0] == '\0')
+      lua_pushfstring(L, line);
+    else
+      lua_pushfstring(L, out);
+    free(out);
+  }
   return 1;
 }
 
@@ -140,19 +208,10 @@ static int writehistory(lua_State *L)
 static void push_history(lua_State *L, HIST_ENTRY *hist)
 {
   // Create lua table history entry
-  lua_newtable(L);
-  lua_pushstring(L, "line");
   if (hist == NULL)
     lua_pushnil(L);
   else
     lua_pushstring(L, hist->line);
-  lua_settable(L, -3);
-  lua_pushstring(L, "timestamp");
-  if (hist == NULL)
-    lua_pushnil(L);
-  else
-    lua_pushstring(L, hist->timestamp);
-  lua_settable(L, -3);
 }
 
 static int previoushistory(lua_State *L)
@@ -177,8 +236,10 @@ static const struct luaL_Reg lib[] = {
   {"_set",        setcompleter},
   {"redisplay",   redisplay},
   {"readline",    lreadline},
-  {"add_history",    addhistory},
-  {"read_history",    readhistory},
+  {"complete",    complete },
+  {"set_input_source", setinput},
+  {"add_history",      addhistory},
+  {"read_history",     readhistory},
   {"write_history",    writehistory},
   {"previous_history", previoushistory},
   {"next_history",     nexthistory},
@@ -189,7 +250,11 @@ int luaopen_rlcompleter_c (lua_State *L)
 {
   luaL_openlib (L, LCOMPLETERLIBNAME, lib, 0);
   storedL = L;
+  tmpinstream = tmpfile();
+  if(tmpinstream == NULL)
+    printf("Cannot create temp stream.\n");
   rl_basic_word_break_characters = " \t\n\"\\'><=;:+-*/%^~#{}()[].,";
   rl_attempted_completion_function = do_completion;
+  rl_completion_display_matches_hook = display_hook;
   return 1;
 }
