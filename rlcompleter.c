@@ -148,10 +148,12 @@ static int setinput(lua_State *L)
   case 0:
     rl_instream = NULL;
     strcpy(c, "set show-all-if-ambiguous off");
+    rl_completion_display_matches_hook = NULL;
     break;
   default:
     rl_instream = tmpinstream;
     strcpy(c, "set show-all-if-ambiguous on");
+    rl_completion_display_matches_hook = display_hook;
     break;
   }
   rl_parse_and_bind(c);
@@ -256,6 +258,6 @@ int luaopen_rlcompleter_c (lua_State *L)
     printf("Cannot create temp stream.\n");
   rl_basic_word_break_characters = " \t\n\"\\'><=;:+-*/%^~#{}()[].,";
   rl_attempted_completion_function = do_completion;
-  rl_completion_display_matches_hook = display_hook;
+
   return 1;
 }
